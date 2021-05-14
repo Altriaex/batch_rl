@@ -1,3 +1,9 @@
+'''
+Descripttion: 
+Author: CoeusZhang
+Date: 2021-05-14 21:20:30
+LastEditTime: 2021-05-14 22:00:18
+'''
 # coding=utf-8
 # Copyright 2021 The Google Research Authors.
 #
@@ -26,6 +32,7 @@ from batch_rl.baselines import train
 from dopamine.discrete_domains import train as base_train  # pylint: disable=unused-import
 import tensorflow.compat.v1 as tf
 
+flags.DEFINE_string('exp_root', None, 'path to root directory for experiments.')
 FLAGS = flags.FLAGS
 
 
@@ -34,9 +41,10 @@ class AtariInitTest(tf.test.TestCase):
   def setUp(self):
     super(AtariInitTest, self).setUp()
     FLAGS.base_dir = os.path.join(
-        '/tmp/batch_rl_tests',
+        FLAGS.exp_root,
         datetime.datetime.utcnow().strftime('run_%Y_%m_%d_%H_%M_%S'))
-    FLAGS.gin_files = ['batch_rl/baselines/configs/dqn.gin']
+    FLAGS.gin_files = [os.path.join(*['batch_rl', 'baselines','configs',
+                                    'dqn.gin'])]
     # `num_iterations` set to zero to prevent runner execution.
     FLAGS.gin_bindings = [
         'Runner.num_iterations=0',
@@ -51,4 +59,5 @@ class AtariInitTest(tf.test.TestCase):
 
 
 if __name__ == '__main__':
+  flags.mark_flag_as_required('exp_root')
   tf.test.main()
