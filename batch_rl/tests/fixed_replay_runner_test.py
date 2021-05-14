@@ -26,6 +26,17 @@ from absl import flags
 from batch_rl.fixed_replay import train
 import tensorflow.compat.v1 as tf
 
+flags.DEFINE_string('exp_root', None, 'path to root directory for experiments.')
+flags.DEFINE_string('base_dir', None,
+                    'Base directory to host all required sub-directories.')
+flags.DEFINE_multi_string(
+    'gin_files', [], 'List of paths to gin configuration files (e.g.'
+    '"third_party/py/dopamine/agents/dqn/dqn.gin").')
+flags.DEFINE_multi_string(
+    'gin_bindings', [],
+    'Gin bindings to override the values set in the config files '
+    '(e.g. "DQNAgent.epsilon_train=0.1",'
+    '      "create_environment.game_name="Pong"").')
 FLAGS = flags.FLAGS
 
 
@@ -36,8 +47,10 @@ class FixedReplayRunnerIntegrationTest(tf.test.TestCase):
 
   def setUp(self):
     super(FixedReplayRunnerIntegrationTest, self).setUp()
+    print("***************")
+    print(FLAGS.base_dir)
     FLAGS.base_dir = os.path.join(
-        '/tmp/batch_rl_tests',
+        FLAGS.exp_root,
         datetime.datetime.utcnow().strftime('run_%Y_%m_%d_%H_%M_%S'))
     self._checkpoint_dir = os.path.join(FLAGS.base_dir, 'checkpoints')
     self._logging_dir = os.path.join(FLAGS.base_dir, 'logs')
@@ -52,7 +65,8 @@ class FixedReplayRunnerIntegrationTest(tf.test.TestCase):
         'FixedReplayRunner.max_steps_per_episode=100',
     ]
     FLAGS.alsologtostderr = True
-    FLAGS.gin_files = ['batch_rl/fixed_replay/configs/rem.gin']
+    FLAGS.gin_files = [os.path.join(*['batch_rl', 'fixed_replay','configs',
+                                    'rem.gin'])]
     FLAGS.agent_name = 'multi_head_dqn'
 
   def verifyFilesCreated(self, base_dir):
@@ -81,4 +95,5 @@ class FixedReplayRunnerIntegrationTest(tf.test.TestCase):
     shutil.rmtree(FLAGS.base_dir)
 
 if __name__ == '__main__':
+  flags.mark_flag_as_required('exp_root')
   tf.test.main()

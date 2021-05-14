@@ -1,9 +1,3 @@
-'''
-Descripttion: 
-Author: CoeusZhang
-Date: 2021-05-14 21:20:30
-LastEditTime: 2021-05-14 22:00:18
-'''
 # coding=utf-8
 # Copyright 2021 The Google Research Authors.
 #
