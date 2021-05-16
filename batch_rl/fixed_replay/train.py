@@ -45,7 +45,16 @@ flags.DEFINE_string('replay_dir', None, 'Directory from which to load the '
                     'replay data')
 flags.DEFINE_string('init_checkpoint_dir', None, 'Directory from which to load '
                     'the initial checkpoint before training starts.')
-
+flags.DEFINE_string('base_dir', None,
+                    'Base directory to host all required sub-directories.')
+flags.DEFINE_multi_string(
+    'gin_files', [], 'List of paths to gin configuration files (e.g.'
+    '"third_party/py/dopamine/agents/dqn/dqn.gin").')
+flags.DEFINE_multi_string(
+    'gin_bindings', [],
+    'Gin bindings to override the values set in the config files '
+    '(e.g. "DQNAgent.epsilon_train=0.1",'
+    '      "create_environment.game_name="Pong"").')
 FLAGS = flags.FLAGS
 
 
