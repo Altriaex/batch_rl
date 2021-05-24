@@ -27,7 +27,8 @@ atari_lib.create_atari_environment.game_name = 'Pong'
 atari_lib.create_atari_environment.sticky_actions = True
 FixedReplayRunner.num_iterations = 200
 FixedReplayRunner.training_steps = 250000
-FixedReplayRunner.evaluation_steps = 125000
+FixedReplayRunner.evaluation_steps = 12500
+#FixedReplayRunner.evaluation_steps = 125000
 FixedReplayRunner.max_steps_per_episode = 27000
 
 WrappedFixedReplayBuffer.replay_capacity = 1000000

@@ -25,7 +25,7 @@ from dopamine.replay_memory import circular_replay_buffer
 
 import numpy as np
 import tensorflow.compat.v1 as tf
-
+import gc
 import gin
 gfile = tf.gfile
 
@@ -97,7 +97,7 @@ class FixedReplayBuffer(object):
       self._replay_buffers = []
       # Load the replay buffers in parallel
       with futures.ThreadPoolExecutor(
-          max_workers=num_buffers) as thread_pool_executor:
+          max_workers=2) as thread_pool_executor:
         replay_futures = [thread_pool_executor.submit(
             self._load_buffer, suffix) for suffix in ckpt_suffixes]
       for f in replay_futures:
@@ -122,6 +122,8 @@ class FixedReplayBuffer(object):
 
   def reload_buffer(self, num_buffers=None):
     self._loaded_buffers = False
+    del self._replay_buffers
+    gc.collect()
     self._load_replay_buffers(num_buffers)
 
   def save(self, *args, **kwargs):  # pylint: disable=unused-argument
