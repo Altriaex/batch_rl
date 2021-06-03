@@ -21,7 +21,7 @@ from __future__ import print_function
 
 import collections
 from concurrent import futures
-from dopamine.replay_memory import circular_replay_buffer
+from . import nonverbose_circular_replay_buffer as circular_replay_buffer
 
 import numpy as np
 import tensorflow.compat.v1 as tf

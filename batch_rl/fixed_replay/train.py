@@ -22,14 +22,15 @@ from __future__ import division
 from __future__ import print_function
 
 import functools
+
 import os
 import os.path as osp
 import shutil
-
+os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
+import tensorflow.compat.v1 as tf
 from absl import app
 from absl import flags
 
-import tensorflow.compat.v1 as tf
 from batch_rl.fixed_replay import run_experiment
 from batch_rl.fixed_replay.agents import dqn_agent
 from batch_rl.fixed_replay.agents import multi_head_dqn_agent
