@@ -22,13 +22,14 @@ from __future__ import division
 from __future__ import print_function
 
 import functools
-import json
 import os
-
+import os.path as osp
+import shutil
 
 from absl import app
 from absl import flags
 
+import tensorflow.compat.v1 as tf
 from batch_rl.fixed_replay import run_experiment
 from batch_rl.fixed_replay.agents import dqn_agent
 from batch_rl.fixed_replay.agents import multi_head_dqn_agent
@@ -36,16 +37,15 @@ from batch_rl.fixed_replay.agents import quantile_agent
 from batch_rl.fixed_replay.agents import rainbow_agent
 
 from dopamine.discrete_domains import run_experiment as base_run_experiment
-import tensorflow.compat.v1 as tf
 
 #from dopamine.google import xm_utils
 
-flags.DEFINE_string('agent_name', 'dqn', 'Name of the agent.')
+flags.DEFINE_string('agent_name', None, 'Name of the agent.')
 flags.DEFINE_string('replay_dir', None, 'Directory from which to load the '
                     'replay data')
 flags.DEFINE_string('init_checkpoint_dir', None, 'Directory from which to load '
                     'the initial checkpoint before training starts.')
-flags.DEFINE_string('base_dir', None,
+flags.DEFINE_string('exp_dir', None,
                     'Base directory to host all required sub-directories.')
 flags.DEFINE_multi_string(
     'gin_files', [], 'List of paths to gin configuration files (e.g.'
@@ -55,6 +55,10 @@ flags.DEFINE_multi_string(
     'Gin bindings to override the values set in the config files '
     '(e.g. "DQNAgent.epsilon_train=0.1",'
     '      "create_environment.game_name="Pong"").')
+flags.DEFINE_string('original_log_folder', None, 'To the root of the original logs')
+flags.DEFINE_string('reward_model_type', None, 'the type of reward model')
+flags.DEFINE_string('preference_model_type', None, 'the type of preference model')
+flags.DEFINE_boolean('use_preference_rewards', True, "whether to use preference rewards")
 FLAGS = flags.FLAGS
 
 
@@ -86,20 +90,53 @@ def create_agent(sess, environment, replay_data_dir, summary_writer=None):
                replay_data_dir=replay_data_dir, summary_writer=summary_writer,
                init_checkpoint_dir=FLAGS.init_checkpoint_dir)
 
+def create_logs_for_training(FLAGS):
+    folder_name = "_".join(["training_logs", FLAGS.agent_name, FLAGS.preference_model_type, FLAGS.reward_model_type])
+    training_log_path = ""
+    for subfolder in [FLAGS.exp_dir, folder_name]:
+        training_log_path = osp.join(training_log_path, subfolder)
+    path, split = osp.split(FLAGS.exp_dir)
+    path, game = osp.split(path)
+    exp_base, exp_id = osp.split(path)
+    original_log_path = osp.join(FLAGS.original_log_folder, game, split)
+    if osp.exists(training_log_path):
+        shutil.rmtree(training_log_path)
+    shutil.copytree(original_log_path, training_log_path)
+    preference_reward_file = "_".join([exp_id, game, split, FLAGS.preference_model_type, FLAGS.reward_model_type]) + ".zip"
+    shutil.copy2(osp.join(exp_base, "preference_rewards", preference_reward_file), training_log_path)
+    shutil.unpack_archive(osp.join(training_log_path, preference_reward_file), extract_dir=osp.join(training_log_path, "replay_logs"), format="zip")
+    os.remove(osp.join(training_log_path, preference_reward_file))
+    return training_log_path
+
+def pack_agents(FLAGS):
+    path, split = osp.split(FLAGS.exp_dir)
+    path, game = osp.split(path)
+    exp_base, exp_id = osp.split(path)
+    agent_name = "_".join([FLAGS.agent_name, FLAGS.preference_model_type, FLAGS.reward_model_type])
+    archive_name = osp.join(exp_base, "agents", "_".join([exp_id, game, split, agent_name]))
+    shutil.make_archive(base_name=archive_name, root_dir=osp.join(FLAGS.exp_dir, agent_name), base_dir=None, format="zip")
 
 
 
 def main(unused_argv):
-  tf.logging.set_verbosity(tf.logging.INFO)
-  base_run_experiment.load_gin_configs(FLAGS.gin_files, FLAGS.gin_bindings)
-  replay_data_dir = os.path.join(FLAGS.replay_dir, 'replay_logs')
-  create_agent_fn = functools.partial(
-      create_agent, replay_data_dir=replay_data_dir)
-  runner = run_experiment.FixedReplayRunner(FLAGS.base_dir, create_agent_fn)
-  runner.run_experiment()
+    if FLAGS.use_preference_rewards:
+        training_log_path = create_logs_for_training(FLAGS)
+        agent_name = "_".join([FLAGS.agent_name, FLAGS.preference_model_type, FLAGS.reward_model_type])
+        FLAGS.replay_dir = training_log_path
+    else:
+        raise NotImplementedError
+    tf.logging.set_verbosity(tf.logging.INFO)
+    base_run_experiment.load_gin_configs(FLAGS.gin_files, FLAGS.gin_bindings)
+    replay_data_dir = os.path.join(FLAGS.replay_dir, 'replay_logs')
+    create_agent_fn = functools.partial(
+        create_agent, replay_data_dir=replay_data_dir)
+    runner = run_experiment.FixedReplayRunner(osp.join(FLAGS.exp_dir, agent_name), create_agent_fn)
+    runner.run_experiment()
+    pack_agents(FLAGS)
 
 
 if __name__ == '__main__':
-  flags.mark_flag_as_required('replay_dir')
-  flags.mark_flag_as_required('base_dir')
-  app.run(main)
+    should_be_required = ["agent_name", "original_log_folder", "reward_model_type", "preference_model_type", "exp_dir"]
+    for f in should_be_required:
+        flags.mark_flag_as_required(f)
+    app.run(main)
