@@ -36,7 +36,9 @@ from batch_rl.fixed_replay.agents import dqn_agent
 from batch_rl.fixed_replay.agents import multi_head_dqn_agent
 from batch_rl.fixed_replay.agents import quantile_agent
 from batch_rl.fixed_replay.agents import rainbow_agent
+from batch_rl.fixed_replay.replay_memory import fixed_replay_buffer
 
+import numpy as np
 from dopamine.discrete_domains import run_experiment as base_run_experiment
 
 #from dopamine.google import xm_utils
@@ -117,6 +119,63 @@ def pack_agents(FLAGS):
     archive_name = osp.join(exp_base, "agents", "_".join([exp_id, game, split, agent_name]))
     shutil.make_archive(base_name=archive_name, root_dir=osp.join(FLAGS.exp_dir, agent_name), base_dir=None, format="zip")
 
+def generate_data_from_records(records, frame_shape, stack_size):
+    stack_obs = [np.zeros(frame_shape+(1,), dtype=np.uint8) for\
+                    _ in range(stack_size-1)]
+    for r_id in range(len(records['terminal'])):
+        if records["terminal"][r_id] == 1:
+            stack_obs = [np.zeros(frame_shape+(1,), dtype=np.uint8) for\
+                            _ in range(stack_size-1)]
+        stack_obs.append(records['observation'][r_id][:, :, None])
+        if len(stack_obs) > stack_size:
+            stack_obs.pop(0)
+        yield {"states": np.concatenate(stack_obs, 2).flatten(),
+               "actions": np.array([records["action"][r_id]]),
+               "rewards": np.array([records["reward"][r_id]]),
+               "terminals": np.array([records["reward"][r_id]])}
+
+
+def _single_float_feature(value):
+  """Returns a float_list from a float / double."""
+  return tf.train.Feature(float_list=tf.train.FloatList(value=[value]))
+
+def _single_int64_feature(value):
+  """Returns an int32_list from a bool / enum / int / uint."""
+  return tf.train.Feature(int64_list=tf.train.Int64List(value=[value]))
+
+def serialize_example(example): 
+  feature = {
+      'states': tf.train.Feature(int64_list=tf.train.Int64List(value=example["states"].flatten())),
+      'actions': _single_int64_feature(example["actions"]),
+      'rewards': _single_float_feature(example["rewards"]),
+      'terminals': _single_int64_feature(example["terminals"])
+  }
+  example_proto = tf.train.Example(features=tf.train.Features(feature=feature))
+  return example_proto.SerializeToString()
+
+def check_buffer(replay_data_dir):
+    # parallel write? 
+    from dopamine.agents.dqn import dqn_agent as dopamine_dqn
+    create_buffer = functools.partial(fixed_replay_buffer.FixedReplayBuffer,
+    data_dir=replay_data_dir,observation_shape=dopamine_dqn.NATURE_DQN_OBSERVATION_SHAPE,
+        stack_size=dopamine_dqn.NATURE_DQN_STACK_SIZE,
+        update_horizon=1,
+        gamma=0.99,
+        observation_dtype=dopamine_dqn.NATURE_DQN_DTYPE.as_numpy_dtype,
+        batch_size=32,
+        replay_capacity=1000000)
+    buffer = create_buffer(replay_suffix=0)._replay_buffers[0]
+    records = buffer._store                    
+    
+    gen = generate_data_from_records(records, dopamine_dqn.NATURE_DQN_OBSERVATION_SHAPE, stack_size=dopamine_dqn.NATURE_DQN_STACK_SIZE)
+    
+    tfrecord_dir, _ = osp.split(replay_data_dir)
+    tfrecord_dir = osp.join(tfrecord_dir, "tfrecords")
+    os.mkdir(tfrecord_dir)
+    with tf.python_io.TFRecordWriter(osp.join(tfrecord_dir, "0.tfrecord"), options=tf.python_io.TFRecordOptions(tf.python_io.TFRecordCompressionType.GZIP)) as writer:
+        for example in gen:
+            example = serialize_example(example)
+            writer.write(example)
 
 
 def main(unused_argv):
@@ -129,6 +188,8 @@ def main(unused_argv):
     tf.logging.set_verbosity(tf.logging.INFO)
     base_run_experiment.load_gin_configs(FLAGS.gin_files, FLAGS.gin_bindings)
     replay_data_dir = os.path.join(FLAGS.replay_dir, 'replay_logs')
+    check_buffer(replay_data_dir)
+    exit()
     create_agent_fn = functools.partial(
         create_agent, replay_data_dir=replay_data_dir)
     runner = run_experiment.FixedReplayRunner(osp.join(FLAGS.exp_dir, agent_name), create_agent_fn)

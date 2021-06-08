@@ -52,7 +52,7 @@ class FixedReplayBuffer(object):
     self.add_count = np.array(0)
     self._replay_suffix = replay_suffix
     while not self._loaded_buffers:
-      if replay_suffix:
+      if replay_suffix >= 0:
         assert replay_suffix >= 0, 'Please pass a non-negative replay suffix'
         self.load_single_buffer(replay_suffix)
       else:
