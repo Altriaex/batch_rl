@@ -75,7 +75,28 @@ class FixedReplayQuantileAgent(quantile_agent.QuantileAgent):
     self._record_observation(observation)
     self.action = self._select_action()
     return self.action
+  
+  def _train_step(self):
+    """Runs a single training step.
+    Runs a training op if both:
+      (1) A minimum number of frames have been added to the replay buffer.
+      (2) `training_steps` is a multiple of `update_period`.
+    Also, syncs weights from online to target network if training steps is a
+    multiple of target update period.
+    """
+    # Run a train op at the rate of self.update_period if enough training steps
+    # have been run. This matches the Nature DQN behaviour.
+    self._sess.run(self._train_op)
+    if (self.summary_writer is not None and
+        self.training_steps > 0 and
+        self.training_steps % self.summary_writing_frequency == 0):
+      summary = self._sess.run(self._merged_summaries)
+      self.summary_writer.add_summary(summary, self.training_steps)
 
+    if self.training_steps % self.target_update_period == 0:
+      self._sess.run(self._sync_qt_ops)
+    self.training_steps += 1
+    
   def end_episode(self, reward):
     assert self.eval_mode, 'Eval mode is not set to be True.'
     super(FixedReplayQuantileAgent, self).end_episode(reward)
