@@ -25,7 +25,6 @@ FixedReplayQuantileAgent.optimizer = @tf.train.AdamOptimizer()
 tf.train.AdamOptimizer.learning_rate = 0.00005
 tf.train.AdamOptimizer.epsilon = 0.0003125
 
-atari_lib.create_atari_environment.game_name = 'Pong'
 atari_lib.create_atari_environment.sticky_actions = True
 FixedReplayRunner.num_iterations = 200
 FixedReplayRunner.training_steps = 62500 # gradient steps

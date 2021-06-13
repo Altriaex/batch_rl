@@ -30,6 +30,7 @@ os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 import tensorflow.compat.v1 as tf
 from absl import app
 from absl import flags
+import gin
 
 from batch_rl.fixed_replay import run_experiment
 from batch_rl.fixed_replay.agents import dqn_agent
@@ -120,6 +121,9 @@ def pack_agents(FLAGS):
 
 
 def main(unused_argv):
+    path, split = osp.split(FLAGS.exp_dir)
+    path, game = osp.split(path)
+    gin.bind_parameter('atari_lib.create_atari_environment.game_name', game)
     if FLAGS.use_preference_rewards:
         training_log_path = create_logs_for_training(FLAGS)
         agent_name = "_".join([FLAGS.agent_name, FLAGS.preference_model_type, FLAGS.reward_model_type])
