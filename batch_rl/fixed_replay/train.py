@@ -61,6 +61,7 @@ flags.DEFINE_string('original_log_folder', None, 'To the root of the original lo
 flags.DEFINE_string('reward_model_type', None, 'the type of reward model')
 flags.DEFINE_string('preference_model_type', None, 'the type of preference model')
 flags.DEFINE_boolean('use_preference_rewards', True, "whether to use preference rewards")
+flags.DEFINE_boolean('init_reward_model', False, 'whether to init from a reward model.')
 FLAGS = flags.FLAGS
 
 
@@ -94,6 +95,8 @@ def create_agent(sess, environment, replay_data_dir, summary_writer=None):
 
 def create_logs_for_training(FLAGS):
     folder_name = "_".join(["training_logs", FLAGS.agent_name, FLAGS.preference_model_type, FLAGS.reward_model_type])
+    if FLAGS.init_reward_model:
+        folder_name += "_init"
     training_log_path = ""
     for subfolder in [FLAGS.exp_dir, folder_name]:
         training_log_path = osp.join(training_log_path, subfolder)
@@ -130,6 +133,12 @@ def main(unused_argv):
         FLAGS.replay_dir = training_log_path
     else:
         raise NotImplementedError
+    if FLAGS.init_reward_model:
+        ckpt = osp.join(FLAGS.exp_dir,
+            "reward_model_{}_{}".format(FLAGS.preference_model_type,
+                                        FLAGS.reward_model_type))
+        gin.bind_parameter('FixedReplayRunner._initialize_checkpointer_and_maybe_resume.init_reward_model_ckpt', ckpt)
+        agent_name += "_init"
     tf.logging.set_verbosity(tf.logging.INFO)
     base_run_experiment.load_gin_configs(FLAGS.gin_files, FLAGS.gin_bindings)
     replay_data_dir = os.path.join(FLAGS.replay_dir, 'replay_logs')

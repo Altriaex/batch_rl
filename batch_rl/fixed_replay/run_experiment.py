@@ -32,8 +32,8 @@ import tensorflow.compat.v1 as tf
 @gin.configurable
 class FixedReplayRunner(run_experiment.Runner):
   """Object that handles running Dopamine experiments with fixed replay buffer."""
-
-  def _initialize_checkpointer_and_maybe_resume(self, checkpoint_file_prefix):
+  @gin.configurable(module='FixedReplayRunner')
+  def _initialize_checkpointer_and_maybe_resume(self, checkpoint_file_prefix, init_reward_model_ckpt=None):
     super(FixedReplayRunner, self)._initialize_checkpointer_and_maybe_resume(
         checkpoint_file_prefix)
 
@@ -59,6 +59,8 @@ class FixedReplayRunner(run_experiment.Runner):
             tf.logging.info(
                 'Reloaded checkpoint from %s and will start from iteration %d',
                 init_checkpoint_dir, self._start_iteration)
+    if self._start_iteration == 0 and not init_reward_model_ckpt is None:
+      self._agent.initialize_CNN_from_reward_model(init_reward_model_ckpt)
 
   def _run_train_phase(self):
     """Run training phase."""

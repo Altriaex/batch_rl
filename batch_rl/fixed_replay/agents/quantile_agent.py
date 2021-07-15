@@ -113,4 +113,30 @@ class FixedReplayQuantileAgent(quantile_agent.QuantileAgent):
         update_horizon=self.update_horizon,
         gamma=self.gamma,
         observation_dtype=self.observation_dtype.as_numpy_dtype)
+  
+  def initialize_CNN_from_reward_model(self, ckpt_path):
+    #ckpt_path = "G:\\crowd_pbrl\\experiments\\large_short\\Pong\\1\\reward_model_bt_reward1"
+    latest = tf.train.latest_checkpoint(ckpt_path)
+    tf.logging.info('Loading CNN from {}'.format(latest))
+    mapping = {
+      'reward_model/Conv/kernel': 'Online/conv2d/kernel:0',
+      'reward_model/Conv/bias': 'Online/conv2d/bias:0',
+      'reward_model/Conv_1/kernel': 'Online/conv2d_1/kernel:0',
+      'reward_model/Conv_1/bias': 'Online/conv2d_1/bias:0',
+      'reward_model/Conv_2/kernel': 'Online/conv2d_2/kernel:0',
+      'reward_model/Conv_2/bias': 'Online/conv2d_2/bias:0'
+    }
+    ops = []
+    vars = tf.trainable_variables()
+    for key, var_name in mapping.items():
+      np_array = tf.train.load_variable(latest, key)
+      var = [v for v in vars if v.name == var_name][0]
+      ops.append(tf.assign(var, np_array))
+    self._sess.run(ops)
+    self._sess.run(self._sync_qt_ops)
+    
+
+
+
+
 
