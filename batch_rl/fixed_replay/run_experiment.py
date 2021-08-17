@@ -66,8 +66,12 @@ class FixedReplayRunner(run_experiment.Runner):
     """Run training phase."""
     self._agent.eval_mode = False
     start_time = time.time()
-    for _ in range(self._training_steps):
-      self._agent._train_step()  # pylint: disable=protected-access
+    reload_frq = self._training_steps // 5
+    for i in range(5):
+      self._agent._train_multiple_steps(reload_frq, num_buffers=2)
+    if self._training_steps - 5 * reload_frq > 0:
+      n_remain = self._training_steps - 5 * reload_frq  
+      self._agent._train_multiple_steps(n_remain, num_buffers=2)
     time_delta = time.time() - start_time
     tf.logging.info('Average training steps per second: %.2f',
                     self._training_steps / time_delta)
@@ -76,15 +80,8 @@ class FixedReplayRunner(run_experiment.Runner):
     """Runs one iteration of agent/environment interaction."""
     statistics = iteration_statistics.IterationStatistics()
     tf.logging.info('Starting iteration %d', iteration)
-    # pylint: disable=protected-access
-    if not self._agent._replay_suffix:
-      # Reload the replay buffer
-      self._agent._replay.memory.reload_buffer(num_buffers=4)
-    # pylint: enable=protected-access
     self._run_train_phase()
-
     num_episodes_eval, average_reward_eval = self._run_eval_phase(statistics)
-
     self._save_tensorboard_summaries(
         iteration, num_episodes_eval, average_reward_eval)
     return statistics.data_lists

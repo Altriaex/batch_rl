@@ -96,7 +96,23 @@ class FixedReplayQuantileAgent(quantile_agent.QuantileAgent):
     if self.training_steps % self.target_update_period == 0:
       self._sess.run(self._sync_qt_ops)
     self.training_steps += 1
-    
+  
+  def _train_multiple_steps(self, total_steps, num_buffers=2):
+    """Run multiple training steps to speedup training.
+    """
+    self._replay.memory.reload_buffer(num_buffers=num_buffers)  
+    n_steps_sofar = self.training_steps
+    while self.training_steps < n_steps_sofar + total_steps:
+      for _ in range(self.target_update_period):
+        # run multiple training steps without interruption
+        self._sess.run(self._train_op)
+      self._sess.run(self._sync_qt_ops)
+      self.training_steps += self.target_update_period
+      
+    if self.summary_writer is not None:
+      summary = self._sess.run(self._merged_summaries)
+      self.summary_writer.add_summary(summary, self.training_steps)
+
   def end_episode(self, reward):
     assert self.eval_mode, 'Eval mode is not set to be True.'
     super(FixedReplayQuantileAgent, self).end_episode(reward)
