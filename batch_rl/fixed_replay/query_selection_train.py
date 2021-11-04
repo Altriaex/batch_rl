@@ -60,6 +60,7 @@ flags.DEFINE_multi_string(
 flags.DEFINE_string('original_log_folder', None, 'To the root of the original logs')
 flags.DEFINE_string('query_method', None, 'the type of reward model')
 flags.DEFINE_boolean('use_preference_rewards', True, "whether to use preference rewards")
+flags.DEFINE_string('batch_id', '4', 'run rewrard trained on data upto this id.')
 FLAGS = flags.FLAGS
 
 
@@ -92,7 +93,7 @@ def create_agent(sess, environment, replay_data_dir, summary_writer=None):
                init_checkpoint_dir=FLAGS.init_checkpoint_dir)
 
 def create_logs_for_training(FLAGS):
-    folder_name = "_".join(["training_logs", FLAGS.agent_name, FLAGS.query_method+"_query_selection"])
+    folder_name = "_".join(["training_logs", FLAGS.agent_name, FLAGS.query_method, "query_selection", FLAGS.batch_id])
     training_log_path = ""
     for subfolder in [FLAGS.exp_dir, folder_name]:
         training_log_path = osp.join(training_log_path, subfolder)
@@ -103,7 +104,7 @@ def create_logs_for_training(FLAGS):
     if osp.exists(training_log_path):
         shutil.rmtree(training_log_path)
     shutil.copytree(original_log_path, training_log_path)
-    preference_reward_file = "_".join([exp_id, game, split, FLAGS.query_method+"_query_selection"]) + ".zip"
+    preference_reward_file = "_".join([exp_id, game, split, FLAGS.query_method, "query_selection", FLAGS.batch_id]) + ".zip"
     shutil.copy2(osp.join(exp_base, "preference_rewards", preference_reward_file), training_log_path)
     shutil.unpack_archive(osp.join(training_log_path, preference_reward_file), extract_dir=osp.join(training_log_path, "replay_logs"), format="zip")
     os.remove(osp.join(training_log_path, preference_reward_file))
@@ -113,7 +114,7 @@ def pack_agents(FLAGS):
     path, split = osp.split(FLAGS.exp_dir)
     path, game = osp.split(path)
     exp_base, exp_id = osp.split(path)
-    agent_name = "_".join([FLAGS.agent_name, FLAGS.query_method+"_query_selection"])
+    agent_name = "_".join([FLAGS.agent_name, FLAGS.query_method, "query_selection", FLAGS.batch_id])
     archive_name = osp.join(exp_base, "agents", "_".join([exp_id, game, split, agent_name]))
     shutil.make_archive(base_name=archive_name, root_dir=osp.join(FLAGS.exp_dir, agent_name), base_dir=None, format="zip")
 
@@ -125,7 +126,7 @@ def main(unused_argv):
     gin.bind_parameter('atari_lib.create_atari_environment.game_name', game)
     if FLAGS.use_preference_rewards:
         training_log_path = create_logs_for_training(FLAGS)
-        agent_name = "_".join([FLAGS.agent_name, FLAGS.query_method+"_query_selection"])
+        agent_name = "_".join([FLAGS.agent_name, FLAGS.query_method, "query_selection", FLAGS.batch_id])
         FLAGS.replay_dir = training_log_path
     else:
         raise NotImplementedError
@@ -140,7 +141,7 @@ def main(unused_argv):
 
 
 if __name__ == '__main__':
-    should_be_required = ["agent_name", "original_log_folder", "query_method", "exp_dir"]
+    should_be_required = ["agent_name", "original_log_folder", "query_method", "exp_dir", "batch_id"]
     for f in should_be_required:
         flags.mark_flag_as_required(f)
     app.run(main)
