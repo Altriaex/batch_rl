@@ -1,0 +1,31 @@
+# Hyperparameters follow Dabney et al. (2017) but we modify as necessary to
+# match those used in Rainbow (Hessel et al., 2018), to ensure apples-to-apples
+# comparison.
+import dopamine.discrete_domains.atari_lib
+import batch_rl.fixed_replay.run_experiment
+import batch_rl.fixed_replay.replay_memory.fixed_replay_buffer
+import batch_rl.fixed_replay.agents.bc_agent
+import gin.tf.external_configurables
+
+BehavioralCloningAgent.min_replay_history = 20000 # agent steps
+BehavioralCloningAgent.epsilon_train = 0.01
+BehavioralCloningAgent.epsilon_eval = 0.001
+BehavioralCloningAgent.epsilon_decay_period = 250000 # agent steps
+BehavioralCloningAgent.tf_device = '/gpu:0'  # use '/cpu:*' for non-GPU version
+BehavioralCloningAgent.summary_writing_frequency = 10000
+BehavioralCloningAgent.optimizer = @tf.train.AdamOptimizer()
+
+tf.train.AdamOptimizer.learning_rate = 0.00005
+tf.train.AdamOptimizer.epsilon = 0.0003125
+
+atari_lib.create_atari_environment.sticky_actions = True
+FixedReplayRunner.num_iterations = 100
+FixedReplayRunner.training_steps = 62500 # gradient steps
+#FixedReplayRunner.evaluation_steps = 12500
+FixedReplayRunner.evaluation_steps = 125000
+FixedReplayRunner.max_steps_per_episode = 27000
+
+WrappedFixedReplayBuffer.replay_capacity = 1000000
+WrappedFixedReplayBuffer.batch_size = 32
+
+

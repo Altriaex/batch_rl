@@ -33,10 +33,8 @@ from absl import flags
 import gin
 
 from batch_rl.fixed_replay import run_experiment
-from batch_rl.fixed_replay.agents import dqn_agent
-from batch_rl.fixed_replay.agents import multi_head_dqn_agent
+from batch_rl.fixed_replay.agents import bc_agent
 from batch_rl.fixed_replay.agents import quantile_agent
-from batch_rl.fixed_replay.agents import rainbow_agent
 
 from dopamine.discrete_domains import run_experiment as base_run_experiment
 
@@ -60,6 +58,7 @@ flags.DEFINE_multi_string(
 flags.DEFINE_string('original_log_folder', None, 'To the root of the original logs')
 flags.DEFINE_string('method', None, 'the type of reward model')
 flags.DEFINE_boolean('use_preference_rewards', True, "whether to use preference rewards")
+flags.DEFINE_string('replay_suffix', None, 'the suffix used in training')
 FLAGS = flags.FLAGS
 
 
@@ -76,19 +75,16 @@ def create_agent(sess, environment, replay_data_dir, summary_writer=None):
   Returns:
     A DQN agent with metrics.
   """
-  if FLAGS.agent_name == 'dqn':
-    agent = dqn_agent.FixedReplayDQNAgent
-  elif FLAGS.agent_name == 'c51':
-    agent = rainbow_agent.FixedReplayRainbowAgent
-  elif FLAGS.agent_name == 'quantile':
+  if FLAGS.agent_name == 'quantile':
     agent = quantile_agent.FixedReplayQuantileAgent
-  elif FLAGS.agent_name == 'multi_head_dqn':
-    agent = multi_head_dqn_agent.FixedReplayMultiHeadDQNAgent
+  elif FLAGS.agent_name == 'bc':
+    agent = bc_agent.BehavioralCloningAgent
   else:
     raise ValueError('{} is not a valid agent name'.format(FLAGS.agent_name))
-
   return agent(sess, num_actions=environment.action_space.n,
-               replay_data_dir=replay_data_dir, summary_writer=summary_writer,
+               replay_data_dir=replay_data_dir,
+               replay_suffix=FLAGS.replay_suffix,
+               summary_writer=summary_writer,
                init_checkpoint_dir=FLAGS.init_checkpoint_dir)
 
 def create_logs_for_training(FLAGS):

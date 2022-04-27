@@ -50,12 +50,11 @@ class FixedReplayBuffer(object):
     self._data_dir = data_dir
     self._loaded_buffers = False
     self.add_count = np.array(0)
-    self._replay_suffix = replay_suffix
+    if not replay_suffix is None:
+      self._replay_suffix = replay_suffix.split(",")
+    else:
+      self._replay_suffix = None
     while not self._loaded_buffers:
-      if replay_suffix:
-        assert replay_suffix >= 0, 'Please pass a non-negative replay suffix'
-        self.load_single_buffer(replay_suffix)
-      else:
         self._load_replay_buffers(num_buffers=1)
 
   def load_single_buffer(self, suffix):
@@ -90,7 +89,11 @@ class FixedReplayBuffer(object):
           [name.split('.')[-2] for name in ckpts])
       # Should contain the files for add_count, action, observation, reward,
       # terminal and invalid_range
-      ckpt_suffixes = [x for x in ckpt_counters if ckpt_counters[x] in [6, 7]]
+      if not self._replay_suffix is None:
+        ckpt_suffixes = [x for x in self._replay_suffix if ckpt_counters[x] in [6, 7]]
+      else:
+        ckpt_suffixes = [x for x in ckpt_counters if ckpt_counters[x] in [6, 7]]
+      
       if num_buffers is not None:
         ckpt_suffixes = np.random.choice(
             ckpt_suffixes, num_buffers, replace=False)
